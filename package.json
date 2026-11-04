@@ -1,0 +1,13 @@
+{
+  "name": "order-helpline-voice-ai",
+  "version": "1.0.0",
+  "description": "A working 'Where is my order?' voice AI agent you can watch step by step, then run on Amazon Connect or Genesys Cloud (via Amazon Lex).",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node simulator/server.js",
+    "test": "node --test test/all.test.js",
+    "demo": "node scripts/demo-cli.js",
+    "package:lambda": "node scripts/package-lambda.js"
+  }
+}

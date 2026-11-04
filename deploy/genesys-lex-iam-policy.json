@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "UseTheShopNowBot",
+      "Effect": "Allow",
+      "Action": [
+        "lex:RecognizeText", "lex:RecognizeUtterance", "lex:StartConversation",
+        "lex:DescribeBot", "lex:DescribeBotAlias", "lex:DescribeBotLocale", "lex:DescribeIntent", "lex:DescribeSlot"
+      ],
+      "Resource": [
+        "arn:aws:lex:REGION:ACCOUNT_ID:bot/BOT_ID",
+        "arn:aws:lex:REGION:ACCOUNT_ID:bot-alias/BOT_ID/BOT_ALIAS_ID"
+      ]
+    },
+    {
+      "Sid": "ListBotsForTheArchitectPicker",
+      "Effect": "Allow",
+      "Action": ["lex:ListBots", "lex:ListBotAliases", "lex:ListBotLocales", "lex:ListIntents", "lex:ListSlots", "lex:ListSlotTypes", "lex:ListBotVersions"],
+      "Resource": "*"
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShopNow order helpline · voice AI simulator</title>
+<style>
+  :root { --bg:#f5f7f8; --card:#fff; --ink:#1b2430; --muted:#5f6b78; --line:#dde5ea; --teal:#0f9d8f; --teal-l:#e3f3f1; --blue:#3d6b8c; --blue-l:#e6eef4;
+          --amber:#c98512; --amber-l:#fdf1dd; --red:#d4483a; --red-l:#fbe4df; --violet:#6b5bd2; --violet-l:#ecebfb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); font-size:14px; }
+  header { background:#0e2f3f; color:#fff; padding:12px 20px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 12px 0 0; font-weight:600; }
+  header label { display:flex; align-items:center; gap:6px; font-size:13px; color:#cfe3ea; }
+  header input[type=range] { width:110px; }
+  main { display:grid; grid-template-columns: 340px 1fr 330px; gap:14px; padding:14px; }
+  main > section { min-width: 0; }
+  @media (max-width: 1150px) { main { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 10px; }
+  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px; cursor:pointer; }
+  button:hover { border-color:#b9c7cf; }
+  button.primary { background:var(--teal); color:#fff; border-color:var(--teal); }
+  button.danger { color:var(--red); }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  #chat { height:300px; overflow:auto; background:#fafcfc; border:1px solid var(--line); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:8px; }
+  .bubble { max-width:85%; padding:8px 10px; border-radius:12px; line-height:1.4; }
+  .bubble.bot { background:var(--teal-l); align-self:flex-start; border-bottom-left-radius:3px; }
+  .bubble.caller { background:var(--blue-l); align-self:flex-end; border-bottom-right-radius:3px; }
+  .bubble.sys { background:transparent; color:var(--muted); font-size:12px; align-self:center; text-align:center; }
+  #say { flex:1; min-width:0; padding:8px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  .scen { width:100%; text-align:left; margin-bottom:6px; }
+  .scen b { display:block; } .scen span { color:var(--muted); font-size:12px; }
+  .pipeline { display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; margin-bottom:12px; }
+  .node { border:1px solid var(--line); border-radius:10px; padding:8px 4px; text-align:center; font-size:12px; background:#fff; transition: all .25s; min-height:58px; min-width:0; overflow:hidden; }
+  .node b { display:block; font-size:12.5px; }
+  .node.on { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .node[data-k=phone].on{background:var(--blue-l);border-color:var(--blue)} .node[data-k=genesys].on{background:var(--teal-l);border-color:var(--teal)}
+  .node[data-k=split].on{background:var(--amber-l);border-color:var(--amber)} .node[data-k=connector].on{background:var(--teal-l);border-color:var(--teal)}
+  .node[data-k=bot].on{background:var(--violet-l);border-color:var(--violet)} .node[data-k=tool].on{background:var(--amber-l);border-color:var(--amber)}
+  .node[data-k=agent].on{background:var(--red-l);border-color:var(--red)}
+  #log { height:520px; overflow:auto; display:flex; flex-direction:column; gap:6px; }
+  .ev { border-left:4px solid var(--line); padding:4px 8px; background:#fafcfc; border-radius:0 6px 6px 0; animation: fade .3s; }
+  .ev .t { font-weight:600; } .ev .x { color:var(--muted); font-family: ui-monospace, Menlo, monospace; font-size:11.5px; margin-top:2px; word-break:break-word; }
+  .ev .tag { display:inline-block; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-right:6px; }
+  .ev.phone{border-color:var(--blue)} .ev.genesys,.ev.connector{border-color:var(--teal)} .ev.split,.ev.tool{border-color:var(--amber)}
+  .ev.understand,.ev.rules,.ev.bot{border-color:var(--violet)} .ev.handoff,.ev.agent{border-color:var(--red)} .ev.say{border-color:#9fd8d1;background:#f3fbfa}
+  .ev.result{border-color:#0e2f3f;background:#eef4f6}
+  @keyframes fade { from { opacity:0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+  .meter { margin-bottom:7px; } .meter .lbl { display:flex; justify-content:space-between; font-size:12.5px; }
+  .bar { height:7px; background:#edf1f3; border-radius:4px; overflow:hidden; margin-top:3px; } .bar i { display:block; height:100%; background:var(--teal); width:0; transition: width .3s; }
+  .bar i.warn { background:var(--amber); } .bar i.full { background:var(--red); }
+  #desk { min-height:90px; }
+  .pop { border:1px solid var(--red); background:var(--red-l); border-radius:10px; padding:10px; animation: fade .4s; }
+  .pop b { color:var(--red); }
+  .stat { display:grid; grid-template-columns: repeat(3,1fr); gap:6px; text-align:center; }
+  .stat div { background:#fafcfc; border:1px solid var(--line); border-radius:8px; padding:6px 2px; } .stat b { display:block; font-size:18px; }
+  .split { display:flex; height:22px; border-radius:6px; overflow:hidden; margin:8px 0 4px; font-size:11px; color:#fff; }
+  .split div { display:flex; align-items:center; justify-content:center; transition: width .4s; white-space:nowrap; overflow:hidden; }
+  .muted { color:var(--muted); font-size:12px; line-height:1.45; }
+  .hint { background:var(--amber-l); border:1px solid #f3d9a8; border-radius:8px; padding:8px; font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ShopNow order helpline · voice AI simulator</h1>
+  <label>Bot share <input id="pct" type="range" min="0" max="100" step="10" value="30"> <b id="pctv">30%</b></label>
+  <label><input id="filler" type="checkbox" checked> Filler when slow</label>
+  <label><input id="kill" type="checkbox"> Kill switch</label>
+  <label><input id="speak" type="checkbox"> Speak bot replies</label>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · Pick a real-life call</h2>
+      <div id="scenarios"></div>
+    </div>
+    <div class="card">
+      <h2>2 · …or be the caller yourself</h2>
+      <div class="row" style="margin-bottom:8px">
+        <button class="primary" id="newBot">Call (bot caller)</button>
+        <button id="newRandom">Call (random caller)</button>
+      </div>
+      <div id="chat"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="say" placeholder="Type what the caller says, then Enter" autocomplete="off">
+        <button id="mic" title="Speak (Chrome, via npm start)">🎤</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="silence">Stay silent</button><button id="zero">Press 0</button><button class="danger" id="hang">Hang up</button>
+      </div>
+      <p class="muted">Test orders: <b>10021</b>/94107 out for delivery · <b>10022</b>/10001 late · <b>10023</b>/60601 delivered (missing) · <b>10024</b>/73301 not shipped · <b>10025</b>/98101 slow system</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>3 · Watch each part work</h2>
+      <div class="pipeline">
+        <div class="node" data-k="phone"><b>Caller</b>phone / SIP</div>
+        <div class="node" data-k="genesys"><b>Call flow</b>Genesys / Connect</div>
+        <div class="node" data-k="split"><b>Traffic split</b>bot or person</div>
+        <div class="node" data-k="connector"><b>Audio pipe</b>WebSocket</div>
+        <div class="node" data-k="bot"><b>AI assistant</b>understand + rules</div>
+        <div class="node" data-k="tool"><b>Order system</b>API lookup</div>
+        <div class="node" data-k="agent"><b>Agent</b>queue + screen</div>
+      </div>
+      <div id="log"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Hand-over rules (live scorecard)</h2>
+      <div id="meters"></div>
+      <p class="muted">When any bar fills up, the bot stops and hands the caller to a person with a summary.</p>
+    </div>
+    <div class="card">
+      <h2>Agent desktop</h2>
+      <div id="desk" class="muted">No call transferred yet. When the bot hands over, the agent's screen pops here.</div>
+    </div>
+    <div class="card">
+      <h2>Today's numbers</h2>
+      <div class="stat">
+        <div><b id="sCalls">0</b>calls</div><div><b id="sBot">0</b>to bot</div><div><b id="sCont">0%</b>contained</div>
+        <div><b id="sPlan">0</b>planned hand-over</div><div><b id="sForced">0</b>bot struggled</div><div><b id="sAband">0</b>hung up</div>
+      </div>
+      <p class="muted" style="margin-top:8px">Contained = solved by the bot ÷ calls that reached the bot.</p>
+    </div>
+    <div class="card">
+      <h2>What does "30% to the bot" mean?</h2>
+      <button id="run100">Simulate 100 callers</button>
+      <div class="split" id="splitbar"><div style="width:100%;background:#c9d4da;color:#1b2430">press the button</div></div>
+      <div class="muted" id="splittext">Every caller gets a fixed bucket 0–99 from their phone number. 10% are a holdout that never meets the bot (so you can compare fairly). The bot share applies to everyone else.</div>
+    </div>
+  </section>
+</main>
+
+<script src="../src/nlu.js"></script>
+<script src="../src/policy.js"></script>
+<script src="../src/orders.js"></script>
+<script src="../src/allocator.js"></script>
+<script src="../src/brain.js"></script>
+<script src="../src/scenarios.js"></script>
+<script>
+(function () {
+  const { brain, allocator, scenarios, policy } = window.OrderHelp;
+  const $ = (id) => document.getElementById(id);
+  const LAYER_NODE = { phone: 'phone', genesys: 'genesys', split: 'split', connector: 'connector', understand: 'bot', rules: 'bot', bot: 'bot', say: 'bot', tool: 'tool', handoff: 'agent', agent: 'agent' };
+  const LAYER_TAG = { phone: 'caller', genesys: 'call flow', split: 'traffic split', connector: 'audio pipe', understand: 'understanding', rules: 'rules', bot: 'assistant', say: 'bot says', tool: 'order system', handoff: 'hand-over', agent: 'agent', result: 'result' };
+  let call = null, stats = brain.newStats(), queue = [], busy = false, playing = false;
+
+  const settings = () => ({ botPercent: +$('pct').value, holdoutPercent: 10, filler: $('filler').checked, killSwitch: $('kill').checked });
+  $('pct').oninput = () => { $('pctv').textContent = $('pct').value + '%'; };
+
+  // ---------- event animation queue ----------
+  function enqueue(ev) { queue.push(ev); pump(); }
+  function pump() {
+    if (busy || !queue.length) return;
+    busy = true;
+    const ev = queue.shift();
+    render(ev);
+    const done = () => { busy = false; pump(); if (!queue.length) document.dispatchEvent(new Event('drained')); };
+    if (ev.layer === 'say' && $('speak').checked && 'speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(ev.title); u.rate = 1.05; u.onend = done; u.onerror = done; speechSynthesis.speak(u);
+    } else setTimeout(done, ev.layer === 'say' ? 700 : 380);
+  }
+  function render(ev) {
+    document.querySelectorAll('.node').forEach((n) => n.classList.remove('on'));
+    const node = document.querySelector(`.node[data-k="${LAYER_NODE[ev.layer]}"]`);
+    if (node) node.classList.add('on');
+    const d = document.createElement('div');
+    d.className = 'ev ' + ev.layer;
+    d.innerHTML = `<div class="t"><span class="tag">${LAYER_TAG[ev.layer] || ev.layer}</span>${esc(ev.title)}</div>` + (ev.tech ? `<div class="x">${esc(ev.tech)}</div>` : '');
+    $('log').appendChild(d); $('log').scrollTop = 1e9;
+    if (ev.layer === 'say') bubble('bot', ev.title);
+    if (ev.layer === 'agent' && call && call.outcome && call.outcome.type === 'escalated') showDesk(call.outcome);
+    if (ev.layer === 'result') { finishStats(); }
+    drawMeters();
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function bubble(who, text) { const b = document.createElement('div'); b.className = 'bubble ' + who; b.textContent = text; $('chat').appendChild(b); $('chat').scrollTop = 1e9; }
+
+  // ---------- calls ----------
+  function newCall(phone) {
+    if (call && !call.ended) { /* drop silently */ }
+    $('log').innerHTML = ''; $('chat').innerHTML = ''; $('desk').innerHTML = '<span class="muted">Call in progress…</span>';
+    call = brain.createCall({ phone, settings: settings() });
+    bubble('sys', `Calling from ${phone}`);
+    brain.startCall(call, { onEvent: enqueue });
+    call._counted = false;
+  }
+  async function send(input) {
+    if (!call || call.ended) { bubble('sys', 'Start a call first.'); return; }
+    if (input.text !== undefined) bubble('caller', input.text);
+    if (input.dtmf !== undefined) bubble('caller', `[keypad ${input.dtmf}]`);
+    if (input.silence) bubble('caller', '[silence]');
+    if (input.hangup) bubble('sys', 'Caller hung up');
+    await brain.handleInput(call, input, { onEvent: enqueue });
+  }
+  function finishStats() {
+    if (!call || call._counted || !call.outcome) return;
+    call._counted = true; brain.record(stats, call.outcome);
+    $('sCalls').textContent = stats.calls; $('sBot').textContent = stats.toBot;
+    $('sCont').textContent = stats.toBot ? Math.round(100 * stats.contained / stats.toBot) + '%' : '0%';
+    $('sPlan').textContent = stats.planned; $('sForced').textContent = stats.forced; $('sAband').textContent = stats.abandoned;
+    if (call.outcome.type === 'contained') $('desk').innerHTML = '<span class="muted">Solved by the bot. No agent needed for this call.</span>';
+    if (call.outcome.type === 'abandoned') $('desk').innerHTML = '<span class="muted">Caller hung up before anyone helped. Watch this number closely.</span>';
+    if (call.outcome.type === 'human_direct') $('desk').innerHTML = '<span class="muted">This caller went straight to a person (outside the bot share). No bot summary.</span>';
+  }
+  function showDesk(o) {
+    $('desk').innerHTML = `<div class="pop"><b>Incoming transfer → ${esc(o.queue)}</b> · priority high<br><small>${o.planned ? 'Planned hand-over' : 'Bot needed help'}: ${esc(o.reason.replace(/_/g, ' '))}</small><p style="margin:8px 0 0">${esc(o.summary)}</p></div>`;
+  }
+
+  // ---------- scorecard meters ----------
+  function drawMeters() {
+    const c = call ? call.scorecard : policy.newScorecard(), r = call ? call.rules : policy.DEFAULT_RULES;
+    const rows = [
+      ['Misunderstood in a row', c.misunderstoodInARow, r.maxMisunderstandingsInARow],
+      ['Asked for a person', c.agentRequests, r.agentRequestsBeforeTransfer],
+      ['Wrong order / ZIP', c.wrongDetails, r.maxWrongDetails],
+      ['Unhappy turns in a row', c.unhappyInARow, r.maxUnhappyInARow],
+      ['Silences in a row', c.silencesInARow, r.maxSilencesInARow],
+      ['Turns with no progress', c.turnsWithoutProgress, r.maxTurnsWithoutProgress],
+      ['Bot dead air (> 2 s)', c.deadAirEvents, r.maxDeadAirEvents],
+      ['Seconds in the bot', c.seconds, r.maxCallSeconds],
+    ];
+    $('meters').innerHTML = rows.map(([l, v, m]) => {
+      const p = Math.min(100, Math.round(100 * v / m)); const cls = p >= 100 ? 'full' : p >= 50 ? 'warn' : '';
+      return `<div class="meter"><div class="lbl"><span>${l}</span><b>${v} / ${m}</b></div><div class="bar"><i class="${cls}" style="width:${p}%"></i></div></div>`;
+    }).join('');
+  }
+
+  // ---------- scenarios (autoplay) ----------
+  function waitDrained() { return new Promise((res) => { if (!queue.length && !busy) return res(); document.addEventListener('drained', function h() { document.removeEventListener('drained', h); res(); }); }); }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function play(sc) {
+    if (playing) return; playing = true;
+    newCall(allocator.findPhone(sc.route, settings(), 100 + Math.floor(Math.random() * 500)) || '+14155550123');
+    bubble('sys', sc.story);
+    await waitDrained();
+    for (const st of sc.steps) {
+      if (call.ended) break;
+      await sleep(900);
+      await send(st);
+      await waitDrained();
+    }
+    playing = false;
+  }
+  $('scenarios').innerHTML = scenarios.map((s, i) => `<button class="scen" data-i="${i}"><b>${esc(s.title)}</b><span>${esc(s.story)}</span></button>`).join('');
+  $('scenarios').onclick = (e) => { const b = e.target.closest('.scen'); if (b) play(scenarios[+b.dataset.i]); };
+
+  // ---------- manual controls ----------
+  $('newBot').onclick = () => newCall(allocator.findPhone('BOT', settings(), 100 + Math.floor(Math.random() * 900)) || '+14155550123');
+  $('newRandom').onclick = () => newCall('+1' + Math.floor(2000000000 + Math.random() * 7999999999));
+  $('say').onkeydown = (e) => { if (e.key === 'Enter' && $('say').value.trim()) { const t = $('say').value.trim(); $('say').value = ''; /^\d+$/.test(t) && t.length !== 5 ? send({ dtmf: t }) : send({ text: t }); } };
+  $('silence').onclick = () => send({ silence: true });
+  $('zero').onclick = () => send({ dtmf: '0' });
+  $('hang').onclick = () => send({ hangup: true });
+
+  // ---------- microphone (Web Speech API; Chrome over http://localhost) ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  $('mic').onclick = () => {
+    if (!SR) { bubble('sys', 'Speech input needs Chrome or Edge, opened via "npm start" (http://localhost:3000).'); return; }
+    const rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false;
+    rec.onresult = (e) => send({ text: e.results[0][0].transcript });
+    rec.onerror = (e) => bubble('sys', 'Mic error: ' + e.error);
+    $('mic').textContent = '…'; rec.onend = () => { $('mic').textContent = '🎤'; }; rec.start();
+  };
+
+  // ---------- 100 callers ----------
+  $('run100').onclick = () => {
+    const s = settings(); let hold = 0, bot = 0, human = 0;
+    for (let i = 0; i < 100; i++) { const r = allocator.allocate('+1' + Math.floor(2000000000 + Math.random() * 7999999999), s);
+      if (r.route === 'BOT') bot++; else if (r.reason.includes('holdout')) hold++; else human++; }
+    $('splitbar').innerHTML = `<div style="width:${hold}%;background:#8fb8c9">${hold ? 'holdout ' + hold : ''}</div><div style="width:${bot}%;background:#0f9d8f">${bot ? 'bot ' + bot : ''}</div><div style="width:${human}%;background:#3d6b8c">${human ? 'people ' + human : ''}</div>`;
+    $('splittext').textContent = `With a ${s.botPercent}% bot share: ${bot} of 100 callers met the bot, ${hold} were holdout (never meet the bot, used for fair comparison), ${human} went straight to people.${s.killSwitch ? ' Kill switch is ON, so nobody meets the bot.' : ''} If the bot contains 60% of its calls, that is about ${Math.round(bot * 0.6)} of these 100 calls solved without an agent.`;
+  };
+
+  drawMeters();
+  bubble('sys', 'Pick a call on the left, or press "Call (bot caller)" and type as the customer.');
+})();
+</script>
+</body>
+</html>
