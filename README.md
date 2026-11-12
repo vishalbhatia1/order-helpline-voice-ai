@@ -26,6 +26,15 @@ You need [Node.js 18+](https://nodejs.org) for options B to D (option A needs no
 
 Then follow **[docs/03-run-the-simulator.md](docs/03-run-the-simulator.md)**: it tells you what to click and what to look for.
 
+### New: the building blocks explorer
+
+Open `simulator/building-blocks.html` (or http://localhost:3000/simulator/building-blocks.html). It follows **one call hop by hop**: Airtel → SIP trunk → SBC → Genesys or Amazon Connect → AI bot → order API → agent. Each hop is labelled with its protocol (PSTN, SIP, RTP, WebSocket, WebRTC, webhook) and explains *why*. It also covers cross-platform transfer with UUI, the reverse direction, outbound calls with India rules, and a panel that compares four ways of **splitting calls between Genesys and Connect**.
+
+![Building blocks explorer](docs/images/building-blocks-explorer.png)
+
+- **All the questions, answered:** [docs/07-building-blocks-qa.md](docs/07-building-blocks-qa.md) (58 Q&As: telecom, SIP, Twilio, Lex, WebSocket vs WebRTC vs webhook, Genesys + Connect).
+- **Use case v2 (India hybrid, building blocks first):** [docs/08-use-case-v2-india-hybrid.md](docs/08-use-case-v2-india-hybrid.md).
+
 ## What you are looking at
 
 The simulator lights up each part as it works:
@@ -84,8 +93,10 @@ src/orders.js          pretend order system with 5 test orders
 src/scenarios.js       the 9 demo calls
 lambda/index.js        AWS Lambda for Amazon Lex (wraps src/brain.js)
 deploy/                ready-to-upload Lambda zip, test event, IAM policy example
-docs/                  step-by-step guides in plain English
+docs/                  step-by-step guides, Q&A handbook (07), use case v2 (08)
+simulator/building-blocks.html   call-path explorer: telecom + integration building blocks
 test/all.test.js       16 automated checks (npm test)
+slides/                Voice_AI_Building_Blocks.pptx (start here) + architecture deep-dive deck
 ```
 
 ## Try changing things

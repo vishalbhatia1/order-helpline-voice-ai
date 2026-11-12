@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice AI building blocks explorer</title>
+<style>
+  :root { --bg:#f5f7f8; --card:#fff; --ink:#1b2430; --muted:#5f6b78; --line:#dde5ea;
+    --pstn:#6b7b8c; --sip:#2f6fb0; --rtp:#0f9d8f; --ws:#6b5bd2; --rtc:#c98512; --http:#d4483a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); font-size:14px; }
+  header { background:#0e2f3f; color:#fff; padding:12px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; font-weight:600; } header a { color:#9fd8d1; font-size:13px; }
+  main { display:grid; grid-template-columns: 300px minmax(0,1fr) 320px; gap:14px; padding:14px; }
+  main > section { min-width:0; }
+  @media (max-width: 1200px) { main { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 10px; }
+  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px; cursor:pointer; }
+  button.primary { background:#0f9d8f; color:#fff; border-color:#0f9d8f; }
+  .jr { width:100%; text-align:left; margin-bottom:6px; } .jr b { display:block; } .jr span { color:var(--muted); font-size:12px; }
+  .jr.sel { border-color:#0f9d8f; background:#e3f3f1; }
+  svg text { font-family: system-ui, sans-serif; }
+  .node rect { fill:#fff; stroke:#c9d4da; stroke-width:1.2; rx:10; }
+  .node.on rect { fill:#e3f3f1; stroke:#0f9d8f; stroke-width:2; }
+  .node text.t { font-size:13px; font-weight:600; fill:#1b2430; } .node text.s { font-size:11px; fill:#5f6b78; }
+  .link { stroke:#dde5ea; stroke-width:2; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:6px; }
+  .legend i { display:inline-block; width:22px; height:4px; border-radius:2px; vertical-align:middle; margin-right:4px; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; color:#fff; border-radius:6px; padding:2px 7px; margin-right:6px; }
+  .hop { border-left:4px solid var(--line); padding:6px 8px; background:#fafcfc; margin-bottom:6px; }
+  .hop .x { color:var(--muted); font-size:12.5px; margin-top:3px; line-height:1.45; }
+  .hop.cur { background:#f3fbfa; }
+  .note { background:#fdf1dd; border:1px solid #f3d9a8; border-radius:8px; padding:8px; font-size:12.5px; margin-top:8px; line-height:1.45; }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; } td, th { border-bottom:1px solid var(--line); padding:5px 4px; text-align:left; vertical-align:top; }
+  .bars div { height:20px; border-radius:5px; margin:4px 0; color:#fff; font-size:12px; display:flex; align-items:center; padding-left:6px; white-space:nowrap; transition: width .4s; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  select, input[type=range] { font:inherit; }
+  .muted { color:var(--muted); font-size:12.5px; line-height:1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Voice AI building blocks explorer</h1>
+  <span style="color:#cfe3ea;font-size:13px">Follow one call hop by hop: who carries it, with which protocol, and why</span>
+  <a href="index.html">← back to the WISMO bot simulator</a>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · Pick a call journey</h2>
+      <div id="journeys"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>2 · Watch the call travel</h2>
+      <svg id="map" viewBox="0 0 860 420" width="100%" role="img" aria-label="Network map of the call path">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9z" fill="context-stroke"/></marker>
+        </defs>
+        <g id="links"></g><g id="active"></g><g id="nodes"></g>
+      </svg>
+      <div class="legend">
+        <span><i style="background:var(--pstn)"></i>Phone network (PSTN)</span><span><i style="background:var(--sip)"></i>SIP signalling</span>
+        <span><i style="background:var(--rtp)"></i>RTP / SRTP voice</span><span><i style="background:var(--ws)"></i>WebSocket</span>
+        <span><i style="background:var(--rtc)"></i>WebRTC</span><span><i style="background:var(--http)"></i>Webhook / API (HTTPS)</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="next">Next hop →</button><button id="play">Play all</button><button id="reset">Restart</button>
+        <span class="muted" id="count"></span>
+      </div>
+      <div id="hops" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>What is happening now</h2>
+      <div id="explain" class="muted">Pick a journey on the left, then press <b>Next hop</b>.</div>
+    </div>
+    <div class="card">
+      <h2>3 · Split calls between Genesys and Connect</h2>
+      <div class="row"><label>Method <select id="method">
+        <option value="number">By phone number (line of business)</option>
+        <option value="sbc">By percentage at the SBC</option>
+        <option value="front">One front door, transfer some</option>
+        <option value="overflow">Overflow when busy</option>
+      </select></label></div>
+      <div class="row"><label id="slabel">Share to Connect</label><input id="share" type="range" min="0" max="100" step="10" value="30"><b id="sharev">30%</b></div>
+      <button id="run">Route 100 calls</button>
+      <div class="bars" id="bars"></div>
+      <div class="muted" id="verdict"></div>
+    </div>
+    <div class="card">
+      <h2>WebSocket vs WebRTC vs webhook</h2>
+      <table>
+        <tr><th></th><th>Webhook</th><th>WebSocket</th><th>WebRTC</th></tr>
+        <tr><td>Like</td><td>a doorbell</td><td>an open phone line</td><td>a walkie-talkie built into the browser</td></tr>
+        <tr><td>Lives</td><td>one request</td><td>whole session</td><td>whole call</td></tr>
+        <tr><td>Carries</td><td>small JSON</td><td>text + audio frames</td><td>live audio / video</td></tr>
+        <tr><td>Used for</td><td>order lookup, context</td><td>audio to the AI bot</td><td>website call button, agent softphone</td></tr>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  const COLORS = { PSTN: '#6b7b8c', SIP: '#2f6fb0', RTP: '#0f9d8f', WS: '#6b5bd2', RTC: '#c98512', HTTP: '#d4483a' };
+  const PNAME = { PSTN: 'PSTN', SIP: 'SIP', RTP: 'RTP/SRTP', WS: 'WebSocket', RTC: 'WebRTC', HTTP: 'HTTPS' };
+  const N = {
+    caller:  [10, 190, 'Customer phone', 'Airtel / Jio mobile'],
+    web:     [10, 330, 'Website / app', 'browser "Call us"'],
+    carrier: [165, 190, 'Telecom operator', 'Airtel, Tata, Jio (TSP)'],
+    sbc:     [320, 190, 'SIP trunk + SBC', 'security + routing'],
+    genesys: [490, 90, 'Genesys Cloud', 'BYOC trunk, Architect'],
+    connect: [490, 290, 'Amazon Connect', 'numbers, flows'],
+    agentG:  [680, 40, 'Genesys agent', 'WebRTC softphone'],
+    ai:      [680, 140, 'AI bot', 'Lex / Nova Sonic'],
+    agentC:  [680, 240, 'Connect agent', 'CCP softphone'],
+    api:     [680, 340, 'Order system API', 'Lambda / REST'],
+  };
+  const W = 130, H = 56;
+  const LINKS = [['caller','carrier'],['carrier','sbc'],['sbc','genesys'],['sbc','connect'],['carrier','connect'],['genesys','ai'],['connect','ai'],['ai','api'],['genesys','agentG'],['connect','agentC'],['web','connect']];
+
+  const J = [
+    { t: 'Airtel call → Genesys → Lex bot', s: 'The basic path: operator, SIP trunk, SBC, CCaaS, AI, API', hops: [
+      ['caller','carrier','PSTN','Customer dials the toll-free number on Airtel','A normal phone call. The operator looks at the dialled number and knows which business "owns" it. Nothing about AI yet.'],
+      ['carrier','sbc','SIP','Airtel hands the call over as a SIP INVITE','The number is provisioned on your SIP trunk, so Airtel converts the call to SIP and sends an INVITE ("I have a call for 1800-xxx") to your Session Border Controller.','India: the trunk must come from a licensed operator (Airtel, Tata, Jio, Vi), typically over a dedicated circuit (MPLS/ILL), not the public internet.'],
+      ['sbc','genesys','SIP','SBC forwards the INVITE to the Genesys BYOC trunk (TLS 5061)','The SBC is the security guard and translator: it checks who is calling in, normalises headers, encrypts with TLS/SRTP and routes by number. Genesys matches the number to an Architect flow.'],
+      ['genesys','sbc','RTP','Call answered: voice flows as SRTP packets','After "200 OK" the voice itself travels separately from SIP, as RTP packets roughly every 20 ms, encrypted as SRTP. SIP sets up the call; RTP carries the sound.'],
+      ['genesys','ai','HTTP','Architect "Call Lex V2 Bot" hands the conversation to Lex','Genesys streams the caller\'s speech to Amazon Lex through an AWS IAM role. Lex turns speech into text, understands the intent, asks follow-up questions and speaks back with Polly voices.'],
+      ['ai','api','HTTP','Lex calls a Lambda, which calls the order API','A webhook-style call: one HTTPS request, one answer. "Status of order 10021 for ZIP 94107?" → "out for delivery".'],
+      ['ai','genesys','HTTP','Lex returns the result: intent OrderResolved','Genesys branches on the intent: resolved → goodbye; EscalateToAgent → queue with the summary.'],
+      ['genesys','sbc','SIP','Call ends with SIP BYE','Either side sends BYE; the SBC passes it to the operator and the call record (CDR) is written.','India: CDRs must be kept in India with an IST timestamp, available to the DoT on request.'],
+    ]},
+    { t: 'Airtel → Connect bot → Genesys agent', s: 'Cross-platform transfer with context (UUI)', hops: [
+      ['caller','carrier','PSTN','Customer dials the support number','Same start as any call.'],
+      ['carrier','connect','PSTN','The number is hosted by Amazon Connect','Amazon Connect does not accept your own SIP trunk (no BYOC). The number must be claimed in Connect, delivered by AWS\'s own carrier network or an AWS telephony partner.','India: Indian numbers for Connect are requested through AWS Support / its carrier partner; check current inbound and outbound coverage before you design around it.'],
+      ['connect','ai','HTTP','"Get customer input" block hands the call to the Lex bot','Native integration: no extra plumbing. Connect passes the caller number as a session attribute.'],
+      ['ai','api','HTTP','Lambda looks up the order','The bot verifies and checks the order. The parcel shows "delivered" but the caller never got it.'],
+      ['ai','connect','HTTP','Lex ends with EscalateToAgent + summary attributes','The flow stores va_summary, va_reason, va_queue as contact attributes.'],
+      ['connect','sbc','SIP','External voice transfer: SIP INVITE with User-to-User: <key>','Connect sends the call over a private SIP connection to your SBC instead of the public phone network. The UUI header carries a short reference key, not personal data.','Requires an AWS quota increase for "external voice transfer connectors". Check whether Connect stays in the media path (and keeps billing per minute) after the transfer.'],
+      ['sbc','genesys','SIP','SBC delivers it to the Genesys BYOC trunk','Genesys reads the key from Call.UUIData. Keep UUI short (Genesys recommends ≤ 128 characters) and send only one UUI header.'],
+      ['genesys','api','HTTP','Genesys data action fetches the context by key','A webhook / Lambda data action returns intent, summary and verification status for that key.'],
+      ['genesys','agentG','RTC','Genesys agent answers with a screen pop','The agent uses a WebRTC softphone in the browser and sees the summary: the customer repeats nothing.'],
+    ]},
+    { t: 'Website "Call us" button (WebRTC)', s: 'No phone number, no operator', hops: [
+      ['web','connect','RTC','Browser starts a WebRTC call into Amazon Connect','WebRTC sends microphone audio straight from the browser: encrypted (DTLS-SRTP), usually over UDP, with ICE/STUN/TURN to get through home routers and firewalls. No phone number, no carrier minutes.'],
+      ['connect','ai','HTTP','The same flow and the same Lex bot as phone calls','Channels change, the brain doesn\'t. One bot serves phone, web and app callers.'],
+      ['ai','api','HTTP','Order lookup','Same webhook-style call as before.'],
+      ['connect','agentC','RTC','If needed, a Connect agent answers in the CCP','The agent\'s Contact Control Panel softphone is also WebRTC.'],
+    ]},
+    { t: 'Genesys → own AI bot over WebSocket', s: 'Audio Connector streaming to Nova Sonic', hops: [
+      ['caller','carrier','PSTN','Customer dials','Same start.'],
+      ['carrier','sbc','SIP','SIP INVITE to your trunk','Same as journey 1.'],
+      ['sbc','genesys','SIP','Into Genesys (BYOC)','Same as journey 1.'],
+      ['genesys','ai','WS','Audio Connector opens wss:// and streams raw audio both ways','A WebSocket is one long-lived, two-way pipe. Genesys sends JSON control messages (open, ping, dtmf, close) and binary audio frames (G.711 8 kHz). Your server runs a speech-to-speech model such as Amazon Nova Sonic and streams speech back.'],
+      ['ai','api','HTTP','The bot calls the order API (tool call)','Even in a streaming conversation, data lookups are ordinary HTTPS requests.'],
+      ['ai','genesys','WS','Bot sends "disconnect" with output variables','VA_Outcome, VA_Queue, VA_Summary come back to Architect over the same WebSocket.'],
+      ['genesys','agentG','RTC','Transfer to a Genesys agent with participant data','The call never left Genesys, so there is no cross-platform transfer to go wrong.'],
+    ]},
+    { t: 'Genesys → Amazon Connect (reverse)', s: 'Why this direction is harder', hops: [
+      ['caller','carrier','PSTN','Customer dials a Genesys number','Same start.'],
+      ['carrier','sbc','SIP','SIP INVITE to your trunk','Same as journey 1.'],
+      ['sbc','genesys','SIP','Genesys answers','The Architect flow decides this caller belongs on Connect.'],
+      ['genesys','api','HTTP','Genesys saves context keyed by the caller\'s number','Because Connect ignores incoming SIP headers, the hand-over note must travel through an API/data store instead of UUI.'],
+      ['genesys','sbc','SIP','Genesys places an outbound call to a Connect number','A transfer to an external number: a new SIP INVITE leaves through your trunk.'],
+      ['sbc','carrier','SIP','It goes back out to the operator','The call "trombones": out through the phone network and back in. Extra minutes, extra latency.'],
+      ['carrier','connect','PSTN','It arrives on the Connect-claimed number',''],
+      ['connect','api','HTTP','Connect Lambda looks up the context by caller number','Matches the caller number + a short time window to the note Genesys saved.'],
+      ['connect','agentC','RTC','Connect agent answers','Works, but costs more than journey 2. Prefer splitting calls before they arrive.'],
+    ]},
+    { t: 'Outbound: agent calls the customer', s: 'How "making calls" works', hops: [
+      ['agentG','genesys','RTC','Agent clicks "Call back" in the browser softphone','The agent\'s voice reaches Genesys over WebRTC.'],
+      ['genesys','sbc','SIP','Genesys sends an outbound SIP INVITE with a caller ID','The platform decides which trunk and which caller ID (CLI) to use.'],
+      ['sbc','carrier','SIP','Your licensed trunk carries it to the operator','The SBC sends it to Airtel/Tata, who connect it to the public network.','India: domestic VoIP-to-PSTN dial-out is restricted; outbound calls to Indian numbers must go through a licensed operator\'s trunk. Promotional calls must use 140-series numbers; BFSI service/transactional calls use 1600-series; respect DND.'],
+      ['carrier','caller','PSTN','The customer\'s phone rings','On answer, SRTP/RTP voice flows exactly as for inbound calls.'],
+    ]},
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const ctr = (k) => [N[k][0] + W / 2, N[k][1] + H / 2];
+  function edge(a, b) { // point on the border of a's box toward b
+    const [ax, ay] = ctr(a), [bx, by] = ctr(b); const dx = bx - ax, dy = by - ay;
+    const s = Math.min(Math.abs((W / 2) / (dx || 1e-9)), Math.abs((H / 2) / (dy || 1e-9)));
+    return [ax + dx * s, ay + dy * s];
+  }
+  const esc = (t) => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function el(tag, attrs, parent) { const e = document.createElementNS(svgNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
+
+  LINKS.forEach(([a, b]) => { const [x1, y1] = ctr(a), [x2, y2] = ctr(b); el('line', { x1, y1, x2, y2, class: 'link' }, $('links')); });
+  for (const k in N) {
+    const [x, y, t, s] = N[k]; const g = el('g', { class: 'node', 'data-k': k }, $('nodes'));
+    el('rect', { x, y, width: W, height: H, rx: 10 }, g);
+    el('text', { x: x + W / 2, y: y + 23, 'text-anchor': 'middle', class: 't' }, g).textContent = t;
+    el('text', { x: x + W / 2, y: y + 41, 'text-anchor': 'middle', class: 's' }, g).textContent = s;
+  }
+
+  let cur = 0, i = 0, timer = null;
+  $('journeys').innerHTML = J.map((j, n) => `<button class="jr" data-n="${n}"><b>${n + 1}. ${j.t}</b><span>${j.s}</span></button>`).join('');
+  $('journeys').onclick = (e) => { const b = e.target.closest('.jr'); if (b) { cur = +b.dataset.n; reset(); } };
+
+  function reset() {
+    clearInterval(timer); timer = null; i = 0; $('hops').innerHTML = ''; $('active').innerHTML = '';
+    document.querySelectorAll('.node').forEach((n) => n.classList.remove('on'));
+    document.querySelectorAll('.jr').forEach((b) => b.classList.toggle('sel', +b.dataset.n === cur));
+    $('count').textContent = `0 / ${J[cur].hops.length} hops`;
+    $('explain').innerHTML = `<b>${J[cur].t}</b><br>${J[cur].s}. Press <b>Next hop</b>.`;
+  }
+  function step() {
+    const hops = J[cur].hops; if (i >= hops.length) { clearInterval(timer); timer = null; return; }
+    const [a, b, p, title, why, india] = hops[i]; i++;
+    document.querySelectorAll('.node').forEach((n) => n.classList.toggle('on', n.dataset.k === a || n.dataset.k === b));
+    $('active').innerHTML = '';
+    const [x1, y1] = edge(a, b), [x2, y2] = edge(b, a);
+    const line = el('line', { x1, y1, x2, y2, stroke: COLORS[p], 'stroke-width': 4, 'marker-end': 'url(#ah)' }, $('active'));
+    if (p === 'RTP' || p === 'WS' || p === 'RTC') line.setAttribute('marker-start', 'url(#ah)');
+    const dot = el('circle', { r: 6, fill: COLORS[p] }, $('active'));
+    el('animateMotion', { dur: '1.2s', repeatCount: 'indefinite', path: `M${x1},${y1} L${x2},${y2}` }, dot);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 10;
+    const lbl = el('text', { x: mx, y: my, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: COLORS[p], stroke: '#fff', 'stroke-width': 4, 'paint-order': 'stroke' }, $('active'));
+    lbl.textContent = PNAME[p];
+    document.querySelectorAll('.hop').forEach((h) => h.classList.remove('cur'));
+    const d = document.createElement('div'); d.className = 'hop cur'; d.style.borderColor = COLORS[p];
+    d.innerHTML = `<span class="badge" style="background:${COLORS[p]}">${PNAME[p]}</span><b>${i}. ${esc(title)}</b>`;
+    $('hops').appendChild(d);
+    $('count').textContent = `${i} / ${hops.length} hops`;
+    $('explain').innerHTML = `<span class="badge" style="background:${COLORS[p]}">${PNAME[p]}</span><b>${esc(title)}</b><p style="margin:8px 0 0;line-height:1.5">${esc(why)}</p>` + (india ? `<div class="note">${esc(india)}</div>` : '');
+  }
+  $('next').onclick = () => { clearInterval(timer); timer = null; step(); };
+  $('play').onclick = () => { if (!timer) timer = setInterval(step, 1800); };
+  $('reset').onclick = reset;
+
+  // ---------- splitting calls between platforms ----------
+  const LABEL = { number: 'Share of calls on the Connect line', sbc: 'Share the SBC sends to Connect', front: 'Share Genesys transfers to Connect', overflow: 'Share that overflows when Genesys is busy' };
+  $('method').onchange = () => { $('slabel').textContent = LABEL[$('method').value]; };
+  $('share').oninput = () => { $('sharev').textContent = $('share').value + '%'; };
+  $('slabel').textContent = LABEL.number;
+  $('run').onclick = () => {
+    const m = $('method').value, s = +$('share').value; let g = 0, c = 0, xfer = 0, extra = 0;
+    for (let k = 0; k < 100; k++) { const r = Math.random() * 100;
+      if (m === 'number') { r < s ? c++ : g++; }
+      else if (m === 'sbc') { if (r < s) { c++; extra++; } else g++; }
+      else if (m === 'front') { g++; if (r < s) { xfer++; c++; } }
+      else { g++; if (r < s) { xfer++; c++; } } }
+    const bar = (w, col, txt) => `<p style="margin:8px 0 2px;font-size:12.5px;color:#1b2430">${txt}</p><div style="width:${Math.max(w, 1)}%;background:${col};height:10px"></div>`;
+    $('bars').innerHTML = bar(m === 'front' || m === 'overflow' ? 100 : g, '#0f9d8f', `answered by Genesys: ${m === 'front' || m === 'overflow' ? 100 : g}`) +
+      bar(c, '#c98512', `end up on Connect: ${c}`) + bar(xfer, '#d4483a', `cross-platform transfers: ${xfer}`);
+    const V = {
+      number: 'Best default. Each line of business gets its own numbers, pointed at its platform by the operator. Zero transfers, simplest reporting. Change the split by moving numbers, not calls.',
+      sbc: `Same numbers, SBC decides. Genesys accepts your SIP trunk, but Connect does not, so the ${extra} Connect calls must be forwarded to a Connect-claimed number (extra phone-network leg). Good for migrations if you accept that leg.`,
+      front: `Every call is answered twice: ${xfer} calls pay for two platforms, wait longer and risk losing context. Only worth it when the first platform adds value (for example an AI bot) before handing over.`,
+      overflow: `Genesys stays primary; only peak-hour excess (${xfer}) moves to Connect. Useful for resilience and seasonal peaks. Keep the transfer path tested because it is rarely used.`,
+    };
+    $('verdict').textContent = V[m];
+  };
+  reset();
+})();
+</script>
+</body>
+</html>
